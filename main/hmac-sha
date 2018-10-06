@@ -1,0 +1,45 @@
+#include "hwcrypto\aes.h"
+#include "hwcrypto\sha.h"
+#include <string>
+
+#define IPAD 0x36
+#define OPAD 0x5C
+#define HMAC_SHA2_512
+
+#ifdef HMAC_SHA2_256
+	#define BLOCK_SIZE 64
+	#define HMAC SHA2_256
+#elif defined HMAC_SHA2_512
+	#define BLOCK_SIZE 128
+	#define HMAC SHA2_512
+#endif
+void _xor(const char *key, char pad, char* outp)
+{
+	for(int i=0;i<BLOCK_SIZE;i++)
+	{
+		outp[i] = key[i] ^ pad;
+	}
+}
+void app_main(void) {
+
+	esp_log_level_set("*", ESP_LOG_INFO);
+	const char key[BLOCK_SIZE] = "secretPassw0rd";
+	const char inp[] = "text to test HMAC";
+	char conc[256] = {0};
+	char conc2[256] = {0};
+	unsigned char outp[BLOCK_SIZE/2] = {0};
+	char tmp_out[BLOCK_SIZE] = {0};
+
+	_xor(key, IPAD, tmp_out);
+	memcpy(conc, tmp_out, BLOCK_SIZE);
+	memcpy(conc + BLOCK_SIZE, inp, strlen(inp));
+	
+	esp_sha(HMAC, (const unsigned char *)conc, strlen((const char *)conc), outp);
+
+	_xor(key, OPAD, tmp_out);
+	memcpy(conc2, tmp_out, BLOCK_SIZE);
+	memcpy(conc2 + BLOCK_SIZE, (const char *)outp, BLOCK_SIZE/2);
+
+	esp_sha(HMAC, (const unsigned char *)conc2, BLOCK_SIZE * 1.5, outp);
+	ESP_LOG_BUFFER_HEX("HASH step 2", outp, BLOCK_SIZE/2);
+}

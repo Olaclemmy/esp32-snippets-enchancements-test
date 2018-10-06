@@ -1,0 +1,41 @@
+#include "hwcrypto\sha.h"
+#include <string>
+
+#define IPAD 0x36
+#define OPAD 0x5C
+#define SHA2_256
+
+void _xor(const char *key, char pad, char* outp)
+{
+	for(int i=0;i<64;i++)
+	{
+		outp[i] = key[i] ^ pad;
+	}
+}
+
+esp_log_level_set("*", ESP_LOG_INFO);
+	const char key[64] = "secretPassw0rd";
+	const char inp[] = "text to test HMAC";
+	char conc[256] = {0};
+	char conc2[256] = {0};
+	unsigned char outp[32] = {0};
+	char tmp_out[64] = {0};
+
+	_xor(key, IPAD, tmp_out);
+	// ESP_LOG_BUFFER_HEX("ipad", tmp_out, 64);
+
+	strncat(conc, tmp_out, 64);
+	strcat(conc, inp);
+	
+	// ESP_LOG_BUFFER_HEX("step 1", conc, strlen((const char *)conc));
+	esp_sha(SHA2_256, (const unsigned char *)conc, strlen((const char *)conc), outp);
+	// ESP_LOG_BUFFER_HEX("HASH step 1", outp, 32);
+
+	_xor(key, OPAD, tmp_out);
+	// ESP_LOG_BUFFER_HEX("opad", tmp_out, 64);
+	strncat(conc2, tmp_out, 64);
+	memcpy(conc2 + 64, (const char *)outp, 32);
+
+	// ESP_LOG_BUFFER_HEX("step 2", conc2, 96);
+	esp_sha(SHA2_256, (const unsigned char *)conc2, 96, outp);
+	ESP_LOG_BUFFER_HEX("HASH step 2", outp, 32);

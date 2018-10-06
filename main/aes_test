@@ -1,0 +1,30 @@
+esp_aes_context aes;
+	esp_aes_context aes2;
+	const unsigned char key[] = "12345678901234561234567890123456";
+	char _tmp[] = "testtesttesttesttest";
+	// char _tmp[] = "test";
+	// char _tmp2[] = {cc c6 d5 a3 2e df d2 7d 31 27 c8 17 54 b4 54 d3};
+	int i = strlen(_tmp)%16 == 0 ? strlen(_tmp) : (strlen(_tmp)/16 + 1) * 16;
+	char *inp;
+	inp = (char*)calloc(i, sizeof(char));
+	strcpy(inp, _tmp);
+	unsigned char iv[] = {0x9a, 0xa8, 0x17, 0xb7, 0x5e, 0x8e, 0xde, 0xd3, 0xdd, 0x14, 0x67, 0xbb, 0x7f, 0x49, 0x1f, 0xf7}; // 9a, a8, 17, b7, 5e, 8e, de, d3, dd, 14, 67, bb, 7f, 49, 1f, f7
+	unsigned char outp[128] = {0};
+	unsigned char outp2[128] = {0};
+ESP_LOGI("LOG_TAG", "string: %s, length: %d", inp, strlen(inp));
+ESP_LOGI("LOG_TAG", "string: %s, length: %d", iv, 16);
+	ESP_LOG_BUFFER_HEX("text", inp, i);
+// strcpy(inp, "testtesttesttesttest");
+	esp_aes_init(&aes);
+	esp_aes_setkey(&aes, key, 256);
+	esp_aes_crypt_cbc(&aes, ESP_AES_ENCRYPT, i, iv, (const unsigned char*)inp, outp);
+	esp_aes_free(&aes);
+
+	esp_aes_init(&aes2);
+	esp_aes_setkey(&aes2, key, 256);
+	esp_aes_crypt_cbc(&aes2, ESP_AES_DECRYPT, i, iv, (const unsigned char*)outp, outp2);
+	esp_aes_free(&aes2);
+
+	ESP_LOG_BUFFER_HEX("encrypt", outp, i);
+	ESP_LOG_BUFFER_HEX("decrypt", outp2, i);
+	ESP_LOGI("LOG_TAG", "string: %s, length: %d", outp2, i);
