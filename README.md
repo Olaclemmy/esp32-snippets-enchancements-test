@@ -1,5 +1,1 @@
-# Hello World Example
-
-Starts a FreeRTOS task to print "Hello World"
-
-See the README.md file in the upper level 'examples' directory for more information about examples.
+This repository contains many enhancements and bugfixes that require extensive testing before can be merged with https://github.com/nkolban/esp32-snippets repository.
