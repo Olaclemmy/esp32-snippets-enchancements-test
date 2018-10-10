@@ -11,28 +11,46 @@
 #include <string>
 #include <Task.h>
 
-#include "sdkconfig.h"
+// #include "sdkconfig.h"
 
 static char LOG_TAG[] = "SampleHIDDevice";
 
-static BLEHIDDevice* hid;
-
+BLEHIDDevice* hid;
+BLECharacteristic *input;
 class MyTask : public Task {
 	void run(void*){
-    	vTaskDelay(10000);
-    	const char* hello = "Hello world from esp32 hid keyboard!!!";
-		while(*hello){
-			KEYMAP map = keymap[(uint8_t)*hello];
-			uint8_t a[] = {map.modifier, 0x0, map.usage, 0x0,0x0,0x0,0x0,0x0};
-			hid->inputReport(NULL)->setValue(a,sizeof(a));
-			hid->inputReport(NULL)->notify();
+    	// vTaskDelay(1000);
+    	// const char* hello = "Hello world from esp32 hid keyboard!!!";
+			while(1){
+				if(!gpio_get_level(GPIO_NUM_0)){	
+					/* keyboard */
+					// KEYMAP map = keymap[(uint8_t)*hello];
+					// /*
+					// * simulate keydown, we can send up to 6 keys
+					// */
+					// uint8_t a[] = {map.modifier, 0x0, map.usage, 0x0,0x0,0x0,0x0,0x0};
+					// input->setValue(a,8);
+					// input->notify();
+					// vTaskDelay(10/portTICK_PERIOD_MS);
 
-			hello++;
+					// /*
+					// * simulate keyup
+					// */
+					// uint8_t v[] = {0x0, 0x0, 0x0, 0x0,0x0,0x0,0x0,0x0};
+					// input->setValue(v, 8);
+					// input->notify();
+					// hello++;
+
+					// vTaskDelay(10/portTICK_PERIOD_MS);
+					/* keyboard */
+					/* joystick */
+					uint32_t rn = esp_random();
+					input->setValue((uint8_t*)&rn, 2);
+					input->notify(true);
+					/* joystick */
+				}
+			vTaskDelay(50/portTICK_PERIOD_MS);
 		}
-			uint8_t v[] = {0x0, 0x0, 0x0, 0x0,0x0,0x0,0x0,0x0};
-			hid->inputReport(NULL)->setValue(v, sizeof(v));
-			hid->inputReport(NULL)->notify();
-		vTaskDelete(NULL);
 	}
 };
   MyTask *task;
@@ -43,7 +61,7 @@ class MyTask : public Task {
     }
 
     void onDisconnect(BLEServer* pServer){
-
+		task->stop();
     }
   };
 uint32_t passKey = 0;
@@ -78,36 +96,51 @@ class MainBLEServer: public Task {
 
 		task = new MyTask();
 		BLEDevice::init("ESP32");
+		BLEDevice::setMTU(525);
+		BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+		pAdvertising->setPrivateAddress(); //30AEA4064F22 BLEAddress("4c57b70e9702"), ADV_TYPE_IND
+
+		pAdvertising->setAppearance(HID_GAMEPAD);
+		pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x1812));
+
 		BLEServer *pServer = BLEDevice::createServer();
 		pServer->setCallbacks(new MyCallbacks());
-		pServer->setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_NO_MITM);
-		// pServer->setSecurityCallbacks(new MySecurity());
-
-		/*
-		 * Instantiate hid device
-		 */
 		hid = new BLEHIDDevice(pServer);
 
-		/*
-		 * Set manufacturer name
-		 * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.manufacturer_name_string.xml
-		 */
 		std::string name = "esp-community";
 		hid->manufacturer()->setValue(name);
 
-		/*
-		 * Set pnp parameters
-		 * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.pnp_id.xml
-		 */
-		const uint8_t pnp[] = {0x01,0x02,0xe5,0xab,0xcd,0x01,0x10};
-		hid->pnp()->setValue((uint8_t*)pnp, sizeof(pnp));
+		hid->pnp(0x01, 0x02e5, 0x11a1, 0x0210);
 
-		/*
-		 * Set hid informations
-		 * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.hid_information.xml
-		 */
-		const uint8_t val1[] = {0x01,0x11,0x00,0x03};
-		hid->hidInfo()->setValue((uint8_t*)val1, 4);
+		hid->hidInfo(20,0x01);
+		input = hid->inputReport(1); // <-- input REPORTID from report map
+		// output = hid->outputReport(1); // <-- output REPORTID from report map
+
+		const uint8_t reportMap3[] = {
+			USAGE_PAGE(1), 			0x01,
+			USAGE(1), 				  0x04,
+			COLLECTION(1),			0x01,
+				REPORT_ID(1),       0x01,
+				LOGICAL_MINIMUM(1), 0x00,
+				LOGICAL_MAXIMUM(1), 0x01,
+				REPORT_COUNT(1),		0x10, /* 32 */
+				REPORT_SIZE(1),	  	0x01,
+				USAGE_PAGE(1),      0x09,
+				USAGE_MINIMUM(1),   0x01,
+				USAGE_MAXIMUM(1),   0x10, /* 32 */
+				INPUT(1),           0x02, // variable | absolute
+				// LOGICAL_MINIMUM(1), 0x00,
+				// LOGICAL_MAXIMUM(1), 0x07,
+				// PHYSICAL_MINIMUM(1),0x01,
+				// PHYSICAL_MAXIMUM(2),(315 & 0xFF), ((315>>8) & 0xFF),
+				// REPORT_SIZE(1),	  	0x04,
+				// REPORT_COUNT(1),	  0x01,
+				// UNIT(1),            20,
+				// USAGE_PAGE(1), 			0x01,
+				// USAGE(1), 				  0x39,  //hat switch
+				// INPUT(1),           0x42, //variable | absolute | null state
+			END_COLLECTION(0)
+		};
 
 		/*
 		 * Mouse
@@ -181,7 +214,7 @@ class MainBLEServer: public Task {
 		 * Set report map (here is initialized device driver on client side)
 		 * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.report_map.xml
 		 */
-		hid->setReportMap((uint8_t*)reportMap, sizeof(reportMap));
+		hid->reportMap((uint8_t*)reportMap3, sizeof(reportMap3));
 
 		/*
 		 * We are prepared to start hid device services. Before this point we can change all values and/or set parameters we need.
@@ -193,16 +226,14 @@ class MainBLEServer: public Task {
 		/*
 		 * Its good to setup advertising by providing appearance and advertised service. This will let clients find our device by type
 		 */
-		BLEAdvertising *pAdvertising = pServer->getAdvertising();
-		pAdvertising->setAppearance(HID_KEYBOARD);
-		pAdvertising->addServiceUUID(hid->hidService()->getUUID());
-		pAdvertising->start();
+		// BLEAdvertising *pAdvertising = pServer->getAdvertising();
+		BLEDevice::startAdvertising();
 
 
 		BLESecurity *pSecurity = new BLESecurity();
 		pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
 		pSecurity->setCapability(ESP_IO_CAP_NONE);
-		pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+		pSecurity->setInitEncryptionKey(15);
 
 		ESP_LOGD(LOG_TAG, "Advertising started!");
 		delay(1000000);
@@ -210,9 +241,11 @@ class MainBLEServer: public Task {
 };
 
 
-void SampleHID(void)
+void SampleHID2(void)
 {
-	//esp_log_level_set("*", ESP_LOG_DEBUG);
+	gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(GPIO_NUM_0, GPIO_PULLUP_ONLY);
+	// esp_log_level_set("*", ESP_LOG_INFO);
 	MainBLEServer* pMainBleServer = new MainBLEServer();
 	pMainBleServer->setStackSize(20000);
 	pMainBleServer->start();

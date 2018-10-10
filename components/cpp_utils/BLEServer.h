@@ -67,6 +67,7 @@ public:
 	BLEService* 	getServiceByUUID(const char* uuid);
 	BLEService* 	getServiceByUUID(BLEUUID uuid);
 	bool 			connect(BLEAddress address);
+	uint16_t            m_appId;
 
 private:
 	BLEServer();
@@ -74,7 +75,6 @@ private:
 	friend class BLECharacteristic;
 	friend class BLEDevice;
 	esp_ble_adv_data_t  m_adv_data;
-	uint16_t            m_appId;
 	// BLEAdvertising      m_bleAdvertising;
   uint16_t						m_connId;
   uint32_t            m_connectedCount;

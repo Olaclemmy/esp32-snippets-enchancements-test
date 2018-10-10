@@ -18,7 +18,7 @@
 #include "sdkconfig.h"
 
 static const char* LOG_TAG = "SampleClient";
-
+BLEScan *pBLEScan;
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 // The remote service we wish to connect to.
@@ -32,18 +32,16 @@ void read_task(void* data){
 }
 
 
-void scan(void*){
-	BLEDevice::getScan()->start(4);
-	vTaskDelete(NULL);
-}
+void scan(void*);
 
 class MyCallbacks : public BLEClientCallbacks {
 	void onConnect(BLEClient* pC){
 		// BLEDevice::getScan()->stop();
+		// xTaskCreate(scan, "scan", 2048, NULL, 6, NULL);
 	}
 	void onDisconnect(BLEClient* pC) {
 		// pMyClient->stop();
-		xTaskCreate(scan, "scan", 2048, NULL, 5, NULL);
+		xTaskCreate(scan, "scan", 4048, NULL, 6, NULL);
 		// BLEDevice::getScan()->start(4);
 	}
 };
@@ -56,9 +54,10 @@ static void notifyCallback(
 	bool isNotify) {
 		ESP_LOGE(LOG_TAG, "Notify callback for characteristic %s of data %s length %d",
 				pBLERemoteCharacteristic->getUUID().toString().c_str(), ((char*) pData), length);
-	// xTaskCreate(read_task, "read", 2048, (void*)pBLERemoteCharacteristic, 4, nullptr);
+	// xTaskCreate(read_task, "read", 4048, (void*)pBLERemoteCharacteristic, 4, nullptr);
 	// vTaskDelay(1);
 	// ESP_LOGI(LOG_TAG, "%s", pBLERemoteCharacteristic->readValue().c_str());
+		xTaskCreate(scan, "scan", 4048, NULL, 6, NULL);
 }
 
 /**
@@ -75,10 +74,12 @@ class MyClient: public Task {
 
 		// Connect to the remove BLE Server.
 		pClient->connect(*pAddress);
-
+		BLERemoteService* pRemoteService;
+		BLERemoteCharacteristic* pRemoteCharacteristic;
+// if(pClient->isConnected()){
 	ESP_LOGI(LOG_TAG, "6--> %d", uxTaskGetStackHighWaterMark(NULL));
 		// Obtain a reference to the service we are after in the remote BLE server.
-		BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
+		pRemoteService = pClient->getService(serviceUUID);
 		if (pRemoteService == nullptr) {
 			ESP_LOGD(LOG_TAG, "Failed to find our service UUID: %s", serviceUUID.toString().c_str());
 			return;
@@ -87,7 +88,7 @@ class MyClient: public Task {
 	ESP_LOGI(LOG_TAG, "7--> %d", uxTaskGetStackHighWaterMark(NULL));
 
 		// Obtain a reference to the characteristic in the service of the remote BLE server.
-		BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
+		pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
 		if (pRemoteCharacteristic == nullptr) {
 			ESP_LOGD(LOG_TAG, "Failed to find our characteristic UUID: %s", charUUID.toString().c_str());
 			return;
@@ -97,7 +98,7 @@ class MyClient: public Task {
 		// Read the value of the characteristic.
 		// std::string value = pRemoteCharacteristic->readValue();
 		// ESP_LOGD(LOG_TAG, "The characteristic value was: %s", value.c_str());
-
+// }
 		while(pClient->isConnected()) {
 			// Set a new value of the characteristic
 	ESP_LOGI(LOG_TAG, "8--> %d", uxTaskGetStackHighWaterMark(NULL));
@@ -105,13 +106,14 @@ class MyClient: public Task {
 			std::ostringstream stringStream;
 			struct timeval tv;
 			gettimeofday(&tv, nullptr);
-			stringStream << "Time since boot com9: " << tv.tv_sec << "." << tv.tv_usec;
-			pRemoteCharacteristic->writeValue(stringStream.str());
+			stringStream << "Time since boot com 12: " << tv.tv_sec << "." << tv.tv_usec;
+			pRemoteCharacteristic->writeValue(stringStream.str(), false);
 
-			FreeRTOS::sleep(50);
+			FreeRTOS::sleep(10000);
 		}
 
 		// pClient->disconnect();
+		// BLEDevice::removePeerDevice(pClient->getConnId());
 
 		ESP_LOGD(LOG_TAG, "%s", pClient->toString().c_str());
 		ESP_LOGD(LOG_TAG, "-- End of task");
@@ -119,7 +121,18 @@ class MyClient: public Task {
 	} // run
 }; // MyClient
 
-
+void scan(void*){
+	BLEScanResults results =	pBLEScan->start(1);
+ESP_LOGE(LOG_TAG, "coun %d", results.getCount());
+	for(int i=0;i<results.getCount();i++) {
+		auto res = results.getDevice(i);
+		MyClient* pMyClient = new MyClient();
+		pMyClient->setStackSize(18000);
+		pMyClient->start(new BLEAddress(*res.getAddress().getNative()));
+		vTaskDelay(100);
+	}
+	vTaskDelete(NULL);
+}
 /**
  * Scan for BLE servers and find the first one that advertises the service we are looking for.
  */
@@ -127,19 +140,20 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 	/**
 	 * Called for each advertising BLE server.
 	 */
+int i = 0;
 	void onResult(BLEAdvertisedDevice advertisedDevice) {
 		ESP_LOGD(LOG_TAG, "Advertised Device: %s", advertisedDevice.toString().c_str());
 	ESP_LOGI(LOG_TAG, "3--> %d", uxTaskGetStackHighWaterMark(NULL));
 
-		if (1) {
+		// if (i == 1) {
 			advertisedDevice.getScan()->stop();
-
+		// }
 			ESP_LOGD(LOG_TAG, "Found our device!  address: %s", advertisedDevice.getAddress().toString().c_str());
 			MyClient* pMyClient = new MyClient();
-			pMyClient->setStackSize(10000);
+			pMyClient->setStackSize(8000);
 			pMyClient->start(new BLEAddress(*advertisedDevice.getAddress().getNative()));
 	ESP_LOGI(LOG_TAG, "4--> %d", uxTaskGetStackHighWaterMark(NULL));
-		} // Found our server
+		// } // Found our server
 	} // onResult
 }; // MyAdvertisedDeviceCallbacks
 
@@ -149,12 +163,23 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
  */
 void SampleClient(void) {
 	// ESP_LOGD(LOG_TAG, "Scanning sample starting");
+	esp_log_level_set("*", ESP_LOG_INFO);
 	BLEDevice::init("esp32");
-	BLEScan *pBLEScan = BLEDevice::getScan();
-	pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+	pBLEScan = BLEDevice::getScan();
+	// pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), false);
 	pBLEScan->setActiveScan(true);
+	pBLEScan->setInterval(189);
+	pBLEScan->setWindow(29);
 	ESP_LOGI(LOG_TAG, "1--> %d", uxTaskGetStackHighWaterMark(NULL));
-	pBLEScan->start(5);
+	BLEScanResults results =	pBLEScan->start(1);
+ESP_LOGE(LOG_TAG, "coun %d", results.getCount());
+	for(int i=0;i<results.getCount();i++) {
+		auto res = results.getDevice(i);
+		MyClient* pMyClient = new MyClient();
+		pMyClient->setStackSize(18000);
+		pMyClient->start(new BLEAddress(*res.getAddress().getNative()));
+		vTaskDelay(100);
+	}
 	ESP_LOGI(LOG_TAG, "2--> %d", uxTaskGetStackHighWaterMark(NULL));
 } // SampleClient
 

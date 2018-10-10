@@ -40,21 +40,22 @@ void task(void *p)
 	// 	pService2->start();
 	// // }
 
-		pChar->notify();
-		// while(1){
-		// vTaskDelay(100);	
-		// }
+		while(1){
+			if(!gpio_get_level(GPIO_NUM_0))
+				pChar->notify();
+			vTaskDelay(100);	
+		}
 		vTaskDelete(NULL);
 }
 
 class MyCallbacks : public BLEServerCallbacks{
 	void onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
 	{
-		// xTaskCreate(task, "task", 2048, NULL, 5, NULL);
+		xTaskCreate(task, "task", 4048, NULL, 5, NULL);
 				esp_bd_addr_t addr;
 		// memcpy(addr,param->connect.remote_bda,sizeof(esp_bd_addr_t));
 		// esp_ble_gap_set_prefer_conn_params(addr, 0x0028,0x0028, 0, 0x03e8);
-		BLEDevice::startAdvertising();
+		// BLEDevice::startAdvertising();
 	}
 
 	void onDisconnect(BLEServer *pServer)
@@ -157,6 +158,9 @@ class MainBLEServer: public Task {
 void SampleServer(void)
 {
  esp_bt_mem_release(ESP_BT_MODE_CLASSIC_BT);
+ 	gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(GPIO_NUM_0, GPIO_PULLUP_ONLY);
+
  p_myCallbacks = new MyCharacteristicCallback();
 	//esp_log_level_set("*", ESP_LOG_DEBUG);
 	MainBLEServer* pMainBleServer = new MainBLEServer();

@@ -25,8 +25,10 @@
  * @brief %BLE functions.
  */
 typedef struct {
-	BLEAddress address;
+	void *peer_device;
+	// BLEAddress address;
 	bool connected;
+	bool is_client;
 } conn_status_t;
 
 class BLEDevice {
@@ -53,15 +55,17 @@ public:
 	static uint16_t 	m_appId;
 	/* multi connect */
 	static std::map<uint16_t, conn_status_t> getPeerDevices();
-	static void addPeerDevice(uint16_t conn_id, BLEAddress address, bool is_connected);
+	static void addPeerDevice(void* peer, bool is_client);
+	static void removePeerDevice(uint16_t conn_id);
+	static void deinit(bool release_memory = false);
+	static uint16_t		m_localMTU;
+	static esp_ble_sec_act_t 	m_securityLevel;
 
 private:
 	static BLEServer *m_pServer;
 	static BLEScan   *m_pScan;
 	static BLEClient *m_pClient;
-	static esp_ble_sec_act_t 	m_securityLevel;
 	static BLESecurityCallbacks* m_securityCallbacks;
-	static uint16_t		m_localMTU;
 	static BLEAdvertising *m_bleAdvertising;
 	static esp_gatt_if_t getGattcIF();
 	static std::map<uint16_t, conn_status_t> m_connectedDevicesMap;

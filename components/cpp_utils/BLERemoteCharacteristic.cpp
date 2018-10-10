@@ -572,7 +572,6 @@ void BLERemoteCharacteristic::writeValue(std::string newValue, bool response) {
 	}
 
 	m_semaphoreWriteCharEvt.take("writeValue");
-
 	// Invoke the ESP-IDF API to perform the write.
 	esp_err_t errRc = ::esp_ble_gattc_write_char(
 		m_pRemoteService->getClient()->getGattcIf(),

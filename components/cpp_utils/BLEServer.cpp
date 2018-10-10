@@ -222,7 +222,7 @@ void BLEServer::handleGATTServerEvent(
 				m_pServerCallbacks->onConnect(this);
 				m_pServerCallbacks->onConnect(this, param);			
 			}
-			BLEDevice::addPeerDevice(m_connId, BLEAddress(param->connect.remote_bda), true);
+			BLEDevice::addPeerDevice(this, false);
 			m_connectedCount++;   // Increment the number of connected devices count.			
 			break;
 		} // ESP_GATTS_CONNECT_EVT
@@ -258,11 +258,16 @@ void BLEServer::handleGATTServerEvent(
 			if (m_pServerCallbacks != nullptr) {         // If we have callbacks, call now.
 				m_pServerCallbacks->onDisconnect(this);
 			}
-			// startAdvertising(); //- do this with some delay from the loop()
-			BLEDevice::addPeerDevice(param->disconnect.conn_id, BLEAddress(param->disconnect.remote_bda), false);
+			startAdvertising(); //- do this with some delay from the loop()
+			BLEDevice::removePeerDevice(getGattsIf());
 			break;
 		} // ESP_GATTS_DISCONNECT_EVT
 
+		case ESP_GATTS_MTU_EVT: {
+			BLEDevice::m_localMTU = param->mtu.mtu;
+	        ESP_LOGI(LOG_TAG, "ESP_GATTS_MTU_EVT, MTU %d", BLEDevice::m_localMTU);
+	        break;
+		}
 
 		// ESP_GATTS_READ_EVT - A request to read the value of a characteristic has arrived.
 		//

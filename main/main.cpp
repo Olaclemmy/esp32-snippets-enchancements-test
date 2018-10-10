@@ -21,6 +21,7 @@ void SampleClient(void);
 // void SampleRead(void);
 // void SampleScan(void);
 // void SampleSensorTag(void);
+void SampleTimeServer(void);
 void SampleServer(void);
 // void SampleWrite(void);
 // void SampleClient_authentication_numeric_confirmation(void);
@@ -29,12 +30,15 @@ void SampleServer(void);
 // Un-comment ONE of the following
 //            ---
 void SampleCentralServer(void);
+void SampleHID2(void);
 
 void app_main(void) {
+	// SampleHID2();
+
 	//Sample_MLE_15();
 	//Sample1();
 	//SampleAsyncScan();
-	// SampleClient();
+	SampleClient();
 	//SampleClient_Notify();
 	//SampleClientAndServer();
 	//SampleClientDisconnect();
@@ -44,9 +48,12 @@ void app_main(void) {
 	//SampleSensorTag();
 	//SampleScan();
 	// vTaskDelay(5000);
-	SampleServer();
+	// SampleTimeServer();
+	// SampleServer();
+	// SampleTimeServer();
 	//SampleWrite();
 	// SampleClient_authentication_numeric_confirmation();
+	// SampleServer_AuthoriTimezation();	
 	// SampleServer_Authorization();	
 	// SampleCentralServer();
 
