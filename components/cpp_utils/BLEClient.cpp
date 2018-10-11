@@ -404,7 +404,7 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 	errRc = esp_ble_gattc_get_service(getGattcIf(), getConnId(), NULL, result, &count, 0);
 	ESP_LOGI(LOG_TAG, "esp_ble_gattc_get_service: %d services found in cache", count);
 #ifdef CONFIG_GATTC_CACHE_NVS_FLASH
-	if(count < 2) {
+	if(count < 3) {
 #else
 	if(true) {
 #endif
