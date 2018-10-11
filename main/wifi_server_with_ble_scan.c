@@ -27,7 +27,7 @@
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
 
 static const char *TAG="APP";
-
+extern uint16_t get_count();
 /* Function to free context */
 void adder_free_func(void *ctx)
 {
@@ -95,7 +95,7 @@ esp_err_t adder_get_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "/adder GET handler send %d", *(int *)req->sess_ctx);
 
     /* Respond with the accumulated value */
-    snprintf(outbuf, sizeof(outbuf),"%d", *((int *)req->sess_ctx));
+    snprintf(outbuf, sizeof(outbuf),"we have scanned for: %d with no duplicates", get_count());
     httpd_resp_send(req, outbuf, strlen(outbuf));
     return ESP_OK;
 }
@@ -239,13 +239,13 @@ static void initialise_wifi(void *arg)
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 }
-extern void start_ble_scan(void);
+extern void start_ble_scan(void*);
 
 void wifi_test(void)
 {
-    // xTaskCreate(start_ble_scan, "scanner", 4000, NULL, 5, NULL);
     static httpd_handle_t server = NULL;
     ESP_ERROR_CHECK(nvs_flash_init());
     initialise_wifi(&server);
-    start_ble_scan();
+    // start_ble_scan(NULL);
+    xTaskCreate(start_ble_scan, "scanner", 4000, NULL, 1, NULL);
 }
