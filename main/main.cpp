@@ -29,6 +29,8 @@ void SampleServer(void);
 // Un-comment ONE of the following
 //            ---
 void SampleCentralServer(void);
+extern "C" void wifi_test(void);
+
 
 void app_main(void) {
 	//Sample_MLE_15();
@@ -44,10 +46,10 @@ void app_main(void) {
 	//SampleSensorTag();
 	//SampleScan();
 	// vTaskDelay(5000);
-	SampleServer();
+	// SampleServer();
 	//SampleWrite();
 	// SampleClient_authentication_numeric_confirmation();
 	// SampleServer_Authorization();	
 	// SampleCentralServer();
-
+	wifi_test();
 } // app_main

@@ -562,7 +562,7 @@ void BLECharacteristic::notify(bool is_notification) {
 		}
 	}
 	for (auto &myPair : BLEDevice::getPeerDevices()) {
-if(myPair.second.connected){
+if(!myPair.second.is_client){
 		if (m_value.getValue().length() > (BLEDevice::getMTU() - 3)) {
 			ESP_LOGW(LOG_TAG, "- Truncating to %d bytes (maximum notify size)", BLEDevice::getMTU() - 3);
 		}

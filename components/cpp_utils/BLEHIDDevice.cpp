@@ -28,9 +28,13 @@ BLEHIDDevice::BLEHIDDevice(BLEServer* server) {
 	 * Mandatory characteristics for HID service
 	 */
 	m_hidInfoCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4a, BLECharacteristic::PROPERTY_READ);
+	m_hidInfoCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED);
 	m_reportMapCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4b, BLECharacteristic::PROPERTY_READ);
+	m_reportMapCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED);
 	m_hidControlCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4c, BLECharacteristic::PROPERTY_WRITE_NR);
-	m_protocolModeCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4e, BLECharacteristic::PROPERTY_WRITE_NR | BLECharacteristic::PROPERTY_READ);
+	m_hidControlCharacteristic->setAccessPermissions(ESP_GATT_PERM_WRITE_ENCRYPTED);
+	m_protocolModeCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4e, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_READ);
+	m_protocolModeCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
 
 	/*
 	 * Mandatory battery level characteristic with notification and presence descriptor
@@ -43,7 +47,7 @@ BLEHIDDevice::BLEHIDDevice(BLEServer* server) {
 	m_batteryLevelCharacteristic = m_batteryService->createCharacteristic((uint16_t)0x2a19, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
 	m_batteryLevelCharacteristic->addDescriptor(batteryLevelDescriptor);
 	m_batteryLevelCharacteristic->addDescriptor(new BLE2902());
-
+	setBatteryLevel(100);
 	/*
 	 * This value is setup here because its default value in most usage cases, its very rare to use boot mode
 	 * and we want to simplify library using as much as possible
@@ -66,9 +70,9 @@ void BLEHIDDevice::reportMap(uint8_t* map, uint16_t size) {
  * @brief This function suppose to be called at the end, when we have created all characteristics we need to build HID service
  */
 void BLEHIDDevice::startServices() {
+	m_batteryService->start();
 	m_deviceInfoService->start();
 	m_hidService->start();
-	m_batteryService->start();
 }
 
 /*
@@ -91,7 +95,7 @@ void BLEHIDDevice::manufacturer(std::string name) {
  * @brief
  */
 void BLEHIDDevice::pnp(uint8_t sig, uint16_t vid, uint16_t pid, uint16_t version) {
-	uint8_t pnp[] = {sig, (uint8_t)(vid>>8), (uint8_t)vid, (uint8_t)(pid>>8), (uint8_t)pid, (uint8_t)(version>>8), (uint8_t)version};
+	uint8_t pnp[] = {sig, (uint8_t)vid, (uint8_t)(vid>>8), (uint8_t)pid, (uint8_t)(pid>>8), (uint8_t)version, (uint8_t)(version>>8)};
 	m_pnpCharacteristic->setValue(pnp, sizeof(pnp));
 }
 
@@ -111,10 +115,15 @@ void BLEHIDDevice::hidInfo(uint8_t country, uint8_t flags) {
 BLECharacteristic* BLEHIDDevice::inputReport(uint8_t reportID) {
 	BLECharacteristic* 	inputReportCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4d, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
 	BLEDescriptor* inputReportDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2908));
+	BLE2902* p2902 = new BLE2902();
+	inputReportCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED);
+	inputReportDescriptor->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED);
+	p2902->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+	p2902->setNotifications(true);
 
 	uint8_t desc1_val[] = {reportID, 0x01};
 	inputReportDescriptor->setValue((uint8_t*)desc1_val, 2);
-	inputReportCharacteristic->addDescriptor(new BLE2902());
+	inputReportCharacteristic->addDescriptor(p2902);
 	inputReportCharacteristic->addDescriptor(inputReportDescriptor);
 
 	return inputReportCharacteristic;
@@ -126,8 +135,10 @@ BLECharacteristic* BLEHIDDevice::inputReport(uint8_t reportID) {
  * @return Pointer to new output report characteristic
  */
 BLECharacteristic* BLEHIDDevice::outputReport(uint8_t reportID) {
-	BLECharacteristic* 	outputReportCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4d, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+	BLECharacteristic* 	outputReportCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4d, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 	BLEDescriptor* outputReportDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2908));
+	outputReportCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+	outputReportDescriptor->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
 
 	uint8_t desc1_val[] = {reportID, 0x02};
 	outputReportDescriptor->setValue((uint8_t*)desc1_val, 2);
@@ -144,6 +155,8 @@ BLECharacteristic* BLEHIDDevice::outputReport(uint8_t reportID) {
 BLECharacteristic* BLEHIDDevice::featureReport(uint8_t reportID) {
 	BLECharacteristic* 	featureReportCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a4d, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 	BLEDescriptor* featureReportDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2908));
+	featureReportCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+	featureReportDescriptor->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
 
 	uint8_t desc1_val[] = {reportID, 0x03};
 	featureReportDescriptor->setValue((uint8_t*)desc1_val, 2);
@@ -157,7 +170,11 @@ BLECharacteristic* BLEHIDDevice::featureReport(uint8_t reportID) {
  */
 BLECharacteristic* BLEHIDDevice::bootInput() {
 	BLECharacteristic* bootInputCharacteristic = m_hidService->createCharacteristic((uint16_t)0x2a22, BLECharacteristic::PROPERTY_NOTIFY);
-	bootInputCharacteristic->addDescriptor(new BLE2902());
+	BLE2902* p2902 = new BLE2902();
+	bootInputCharacteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED);
+	p2902->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+	p2902->setNotifications(true);
+	bootInputCharacteristic->addDescriptor(p2902);
 
 	return bootInputCharacteristic;
 }

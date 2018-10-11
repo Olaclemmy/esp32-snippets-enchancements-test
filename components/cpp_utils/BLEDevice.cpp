@@ -567,7 +567,7 @@ void BLEDevice::addPeerDevice(void* peer, bool _client) {
 		conn_id = ((BLEClient*)peer)->m_appId;
 	}
 	else {
-		conn_id = ((BLEServer*)peer)->m_appId;
+		conn_id = ((BLEServer*)peer)->getConnId();
 	}
 	ESP_LOGI(LOG_TAG, "add conn_id: %d", conn_id);
 
@@ -596,8 +596,8 @@ void BLEDevice::removePeerDevice(uint16_t conn_id) {
     if (release_memory) {
         esp_bt_mem_release(ESP_BT_MODE_BTDM);
     } else {
-        initialized = false;   // Reset the initialization flag to allow reinitialization.
-    }
+        initialized = false;   
+    } 
 #endif
 }
 

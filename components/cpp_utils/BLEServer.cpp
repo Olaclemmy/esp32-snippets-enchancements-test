@@ -222,7 +222,8 @@ void BLEServer::handleGATTServerEvent(
 				m_pServerCallbacks->onConnect(this);
 				m_pServerCallbacks->onConnect(this, param);			
 			}
-			BLEDevice::addPeerDevice(m_connId, BLEAddress(param->connect.remote_bda), true);
+			m_appId = BLEDevice::m_appId++;
+			BLEDevice::addPeerDevice((void*)this, false);
 			m_connectedCount++;   // Increment the number of connected devices count.			
 			break;
 		} // ESP_GATTS_CONNECT_EVT
@@ -259,7 +260,7 @@ void BLEServer::handleGATTServerEvent(
 				m_pServerCallbacks->onDisconnect(this);
 			}
 			// startAdvertising(); //- do this with some delay from the loop()
-			BLEDevice::addPeerDevice(param->disconnect.conn_id, BLEAddress(param->disconnect.remote_bda), false);
+			BLEDevice::removePeerDevice(param->disconnect.conn_id);
 			break;
 		} // ESP_GATTS_DISCONNECT_EVT
 

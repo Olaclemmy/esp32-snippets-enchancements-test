@@ -144,9 +144,9 @@ BLERemoteCharacteristic* BLERemoteService::getCharacteristic(BLEUUID uuid) {
 // device what characteristics it has in which case we have nothing to match against.  If we have not
 // asked the device about its characteristics, then we do that now.  Once we get the results we can then
 // examine the characteristics map to see if it has the characteristic we are looking for.
-	if (!m_haveCharacteristics) {
+	// if (!m_haveCharacteristics) {
 		retrieveCharacteristics();
-	}
+	// }
 	std::string v = uuid.toString();
 	for (auto &myPair : m_characteristicMap) {
 		if (myPair.first == v) {

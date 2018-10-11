@@ -171,7 +171,7 @@ void BLEClient::gattClientEventHandler(
 					disconnect();
 					m_isConnected = false;
 				BLEDevice::removePeerDevice(m_appId);
-				esp_ble_gattc_app_unregister(m_gattc_if);
+				// esp_ble_gattc_app_unregister(m_gattc_if);
 				m_semaphoreRssiCmplEvt.give();
 				m_semaphoreSearchCmplEvt.give(1);
 				break;

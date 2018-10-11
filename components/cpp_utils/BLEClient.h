@@ -51,8 +51,11 @@ public:
 	void                                       setValue(BLEUUID serviceUUID, BLEUUID characteristicUUID, std::string value);   // Set the value of a given characteristic at a given service.
 
 	std::string                                toString();                    // Return a string representation of this client.
+	uint16_t                                   getConnId();
+	esp_gatt_if_t                              getGattcIf();
 
-
+uint16_t m_appId;
+uint16_t m_mtu;
 private:
 	friend class BLEDevice;
 	friend class BLERemoteService;
@@ -64,8 +67,6 @@ private:
 		esp_gatt_if_t gattc_if,
 		esp_ble_gattc_cb_param_t* param);
 
-	uint16_t                                   getConnId();
-	esp_gatt_if_t                              getGattcIf();
 	BLEAddress    m_peerAddress = BLEAddress((uint8_t*)"\0\0\0\0\0\0");   // The BD address of the remote server.
 	uint16_t      m_conn_id;
 //	int           m_deviceType;

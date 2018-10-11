@@ -50,8 +50,7 @@ void task(void *p)
 class MyCallbacks : public BLEServerCallbacks{
 	void onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
 	{
-		// xTaskCreate(task, "task", 2048, NULL, 5, NULL);
-				esp_bd_addr_t addr;
+		esp_bd_addr_t addr;
 		// memcpy(addr,param->connect.remote_bda,sizeof(esp_bd_addr_t));
 		// esp_ble_gap_set_prefer_conn_params(addr, 0x0028,0x0028, 0, 0x03e8);
 		BLEDevice::startAdvertising();

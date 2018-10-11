@@ -61,6 +61,11 @@ BLEAdvertising::BLEAdvertising() {
 	m_customScanResponseData      = false;   // No custom scan response data
 } // BLEAdvertising
 
+void BLEAdvertising::setPrivateAddress() {
+	m_advParams.own_addr_type = BLE_ADDR_TYPE_RPA_RANDOM;
+	esp_ble_gap_config_local_privacy(true);
+}
+
 
 /**
  * @brief Add a service uuid to exposed list of services.
@@ -206,14 +211,16 @@ void BLEAdvertising::start() {
 		}
 	}
 
-	if (m_customScanResponseData == false) {
-		m_advData.set_scan_rsp = true;
-		errRc = ::esp_ble_gap_config_adv_data(&m_advData);
-		if (errRc != ESP_OK) {
-			ESP_LOGE(LOG_TAG, "<< esp_ble_gap_config_adv_data (Scan response): rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
-			return;
-		}
-	}
+	// if (m_customScanResponseData == false) {
+	// 	m_advData.set_scan_rsp = true;
+	// 	m_advData.include_name = true;
+	// 	m_advData.include_txpower = true;
+	// 	errRc = ::esp_ble_gap_config_adv_data(&m_advData);
+	// 	if (errRc != ESP_OK) {
+	// 		ESP_LOGE(LOG_TAG, "<< esp_ble_gap_config_adv_data (Scan response): rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
+	// 		return;
+	// 	}
+	// }
 
 	// If we had services to advertise then we previously allocated some storage for them.
 	// Here we release that storage.
@@ -271,6 +278,7 @@ void BLEAdvertisementData::setAppearance(uint16_t appearance) {
 	cdata[0] = 3;
 	cdata[1] = ESP_BLE_AD_TYPE_APPEARANCE; // 0x19
 	addData(std::string(cdata, 2) + std::string((char *)&appearance,2));
+	esp_ble_gap_config_local_icon(appearance);
 } // setAppearance
 
 
