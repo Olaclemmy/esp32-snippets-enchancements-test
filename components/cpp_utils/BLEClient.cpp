@@ -93,11 +93,12 @@ bool BLEClient::connect(BLEAddress address) {
 
 // We need the connection handle that we get from registering the application.  We register the app
 // and then block on its completion.  When the event has arrived, we will have the handle.
+	m_appId = BLEDevice::m_appId++;
+	BLEDevice::addPeerDevice(this, true);
 	m_semaphoreRegEvt.take("connect");
 
 	clearServices(); // Delete any services that may exist.
-
-	esp_err_t errRc = ::esp_ble_gattc_app_register(BLEDevice::m_appId++);
+	esp_err_t errRc = ::esp_ble_gattc_app_register(m_appId);
 	if (errRc != ESP_OK) {
 		ESP_LOGE(LOG_TAG, "esp_ble_gattc_app_register: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
 		return false;
@@ -164,11 +165,13 @@ void BLEClient::gattClientEventHandler(
 		case ESP_GATTC_DISCONNECT_EVT: {
 				// If we receive a disconnect event, set the class flag that indicates that we are
 				// no longer connected.
-				if (m_pClientCallbacks != nullptr) {
-					m_pClientCallbacks->onDisconnect(this);
-				}
-				disconnect();
-				m_isConnected = false;
+					if (m_pClientCallbacks != nullptr) {
+						m_pClientCallbacks->onDisconnect(this);
+					}
+					disconnect();
+					m_isConnected = false;
+				BLEDevice::removePeerDevice(m_appId);
+				esp_ble_gattc_app_unregister(m_gattc_if);
 				m_semaphoreRssiCmplEvt.give();
 				m_semaphoreSearchCmplEvt.give(1);
 				break;
@@ -181,11 +184,9 @@ void BLEClient::gattClientEventHandler(
 		// - esp_gatt_status_t status
 		// - uint16_t          conn_id
 		// - esp_bd_addr_t     remote_bda
-		// - uint16_t          mtu
 		//
 		case ESP_GATTC_OPEN_EVT: {
 			m_conn_id = evtParam->open.conn_id;
-			// m_conn_id = 3;
 			if (m_pClientCallbacks != nullptr) {
 				m_pClientCallbacks->onConnect(this);
 			}
@@ -210,6 +211,27 @@ void BLEClient::gattClientEventHandler(
 			break;
 		} // ESP_GATTC_REG_EVT
 
+		case ESP_GATTC_CFG_MTU_EVT:
+			if (evtParam->cfg_mtu.status != ESP_GATT_OK){
+				ESP_LOGE(LOG_TAG,"Config mtu failed");
+			}
+			m_mtu = evtParam->cfg_mtu.mtu;
+			break;
+
+		case ESP_GATTC_CONNECT_EVT: {
+			if(BLEDevice::getMTU() != 23){
+				esp_err_t errRc = esp_ble_gattc_send_mtu_req(gattc_if, evtParam->connect.conn_id);
+				if (errRc != ESP_OK) {
+					ESP_LOGE(LOG_TAG, "esp_ble_gattc_send_mtu_req: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
+				}
+			}
+#ifdef CONFIG_BLE_SMP_ENABLE   // Check that BLE SMP (security) is configured in make menuconfig
+			if(BLEDevice::m_securityLevel){
+				esp_ble_set_encryption(evtParam->connect.remote_bda, BLEDevice::m_securityLevel);
+			}
+#endif	// CONFIG_BLE_SMP_ENABLE
+			break;
+		} // ESP_GATTC_CONNECT_EVT
 
 		//
 		// ESP_GATTC_SEARCH_CMPL_EVT
@@ -224,6 +246,7 @@ void BLEClient::gattClientEventHandler(
 				ESP_LOGE(LOG_TAG, "search service failed, error status = %x", p_data->search_cmpl.status);
 				break;
 			}
+#ifndef ARDUINO_ARCH_ESP32			
 			if(p_data->search_cmpl.searched_service_source == ESP_GATT_SERVICE_FROM_REMOTE_DEVICE) {
 				ESP_LOGI(LOG_TAG, "Get service information from remote device");
 			} else if (p_data->search_cmpl.searched_service_source == ESP_GATT_SERVICE_FROM_NVS_FLASH) {
@@ -231,7 +254,7 @@ void BLEClient::gattClientEventHandler(
 			} else {
 				ESP_LOGI(LOG_TAG, "unknown service source");
 			}
-
+#endif
 			m_semaphoreSearchCmplEvt.give(0);
 			break;
 		} // ESP_GATTC_SEARCH_CMPL_EVT
@@ -380,7 +403,11 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 	clearServices(); // Clear any services that may exist.
 	errRc = esp_ble_gattc_get_service(getGattcIf(), getConnId(), NULL, result, &count, 0);
 	ESP_LOGI(LOG_TAG, "esp_ble_gattc_get_service: %d services found in cache", count);
+#ifdef CONFIG_GATTC_CACHE_NVS_FLASH
 	if(count < 2) {
+#else
+	if(true) {
+#endif
 		errRc = esp_ble_gattc_search_service(
 			getGattcIf(),
 			getConnId(),
@@ -419,7 +446,7 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 			ESP_LOGI(LOG_TAG, "%s", pRemoteService->toString().c_str());
 		}
 	}
-	free(result-count);
+	// free(result-count);
 	ESP_LOGD(LOG_TAG, "<< getServices");
 	return &m_servicesMap;
 } // getServices

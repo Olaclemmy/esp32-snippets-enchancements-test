@@ -1058,10 +1058,12 @@ std::string BLEUtils::gattServerEventTypeToString(esp_gatts_cb_event_t eventType
 	case ESP_GATTS_SET_ATTR_VAL_EVT:
 		return "ESP_GATTS_SET_ATTR_VAL_EVT";
 
-	case ESP_GATTS_SEND_SERVICE_CHANGE_EVT:
-		return "ESP_GATTS_SEND_SERVICE_CHANGE_EVT";
+	// case ESP_GATTS_SEND_SERVICE_CHANGE_EVT:
+	// 	return "ESP_GATTS_SEND_SERVICE_CHANGE_EVT";
+	
+	default:
+		return "Unknown";
 	}
-	return "Unknown";
 } // gattServerEventTypeToString
 
 
