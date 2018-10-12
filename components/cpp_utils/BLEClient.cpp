@@ -94,7 +94,7 @@ bool BLEClient::connect(BLEAddress address) {
 // We need the connection handle that we get from registering the application.  We register the app
 // and then block on its completion.  When the event has arrived, we will have the handle.
 	m_appId = BLEDevice::m_appId++;
-	BLEDevice::addPeerDevice(this, true);
+	BLEDevice::addPeerDevice(this, true, ESP_GATT_IF_NONE);
 	m_semaphoreRegEvt.take("connect");
 
 	clearServices(); // Delete any services that may exist.
@@ -139,7 +139,7 @@ void BLEClient::disconnect() {
 		return;
 	}
 	esp_ble_gattc_app_unregister(getGattcIf());
-	m_peerAddress = BLEAddress("00:00:00:00:00:00");
+	// m_peerAddress = BLEAddress("00:00:00:00:00:00");
 	ESP_LOGD(LOG_TAG, "<< disconnect()");
 } // disconnect
 
@@ -170,8 +170,7 @@ void BLEClient::gattClientEventHandler(
 					}
 					disconnect();
 					m_isConnected = false;
-				BLEDevice::removePeerDevice(m_appId);
-				// esp_ble_gattc_app_unregister(m_gattc_if);
+				BLEDevice::removePeerDevice(m_appId, true);
 				m_semaphoreRssiCmplEvt.give();
 				m_semaphoreSearchCmplEvt.give(1);
 				break;
@@ -219,12 +218,13 @@ void BLEClient::gattClientEventHandler(
 			break;
 
 		case ESP_GATTC_CONNECT_EVT: {
-			if(BLEDevice::getMTU() != 23){
+			BLEDevice::updatePeerDevice(this, true, m_gattc_if);
+			// if(BLEDevice::getMTU() != 23){
 				esp_err_t errRc = esp_ble_gattc_send_mtu_req(gattc_if, evtParam->connect.conn_id);
 				if (errRc != ESP_OK) {
 					ESP_LOGE(LOG_TAG, "esp_ble_gattc_send_mtu_req: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
 				}
-			}
+			// }
 #ifdef CONFIG_BLE_SMP_ENABLE   // Check that BLE SMP (security) is configured in make menuconfig
 			if(BLEDevice::m_securityLevel){
 				esp_ble_set_encryption(evtParam->connect.remote_bda, BLEDevice::m_securityLevel);
@@ -377,6 +377,7 @@ BLERemoteService* BLEClient::getService(BLEUUID uuid) {
 			return myPair.second;
 		}
 	} // End of each of the services.
+	return nullptr;
 	ESP_LOGD(LOG_TAG, "<< getService: not found");
 	throw new BLEUuidNotFoundException;
 } // getService
@@ -404,7 +405,7 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 	errRc = esp_ble_gattc_get_service(getGattcIf(), getConnId(), NULL, result, &count, 0);
 	ESP_LOGI(LOG_TAG, "esp_ble_gattc_get_service: %d services found in cache", count);
 #ifdef CONFIG_GATTC_CACHE_NVS_FLASH
-	if(count < 3) {
+	if(count == 0) {
 #else
 	if(true) {
 #endif
@@ -526,6 +527,10 @@ void BLEClient::setValue(BLEUUID serviceUUID, BLEUUID characteristicUUID, std::s
 	getService(serviceUUID)->getCharacteristic(characteristicUUID)->writeValue(value);
 	ESP_LOGD(LOG_TAG, "<< setValue");
 } // setValue
+
+uint16_t BLEClient::getMTU() {
+	return m_mtu;
+}
 
 
 /**

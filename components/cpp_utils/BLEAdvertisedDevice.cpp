@@ -352,7 +352,7 @@ void BLEAdvertisedDevice::parseAdvertisement(uint8_t* payload) {
 		} // Length <> 0
 
 
-		if (sizeConsumed >=31 || length == 0) {
+		if (sizeConsumed >=62 || length == 0) {
 			finished = true;
 		}
 	} // !finished

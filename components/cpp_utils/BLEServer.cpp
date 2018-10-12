@@ -37,7 +37,7 @@ BLEServer::BLEServer() {
 	m_appId            = -1;
 	m_gatts_if         = -1;
 	m_connectedCount   = 0;
-	m_connId           = -1;
+	m_connId           = ESP_GATT_IF_NONE;
 	m_pServerCallbacks = nullptr;
 
 	//createApp(0);
@@ -46,7 +46,8 @@ BLEServer::BLEServer() {
 
 void BLEServer::createApp(uint16_t appId) {
 	m_appId = appId;
-	registerApp();
+		// BLEDevice::addPeerDevice((void*)this, false, ESP_GATT_IF_NONE);
+	registerApp(appId);
 } // createApp
 
 
@@ -210,6 +211,11 @@ void BLEServer::handleGATTServerEvent(
 			break;
 		} // ESP_GATTS_ADD_CHAR_EVT
 
+		case ESP_GATTS_MTU_EVT: {
+			updateMTU(param->mtu.conn_id, param->mtu.mtu);
+			break;
+		}
+
 
 		// ESP_GATTS_CONNECT_EVT
 		// connect:
@@ -217,14 +223,13 @@ void BLEServer::handleGATTServerEvent(
 		// - esp_bd_addr_t remote_bda
 		//
 		case ESP_GATTS_CONNECT_EVT: {
-			m_connId = param->connect.conn_id; // Save the connection id.
+			// BLEDevice::addPeerDevice((void*)this, false, param->connect.conn_id);
+			addPeerDevice((void*)this, false, param->connect.conn_id);
 			if (m_pServerCallbacks != nullptr) {
 				m_pServerCallbacks->onConnect(this);
 				m_pServerCallbacks->onConnect(this, param);			
 			}
-			m_appId = BLEDevice::m_appId++;
-			BLEDevice::addPeerDevice((void*)this, false);
-			m_connectedCount++;   // Increment the number of connected devices count.			
+			m_connectedCount++;   // Increment the number of connected devices count.	
 			break;
 		} // ESP_GATTS_CONNECT_EVT
 
@@ -260,7 +265,7 @@ void BLEServer::handleGATTServerEvent(
 				m_pServerCallbacks->onDisconnect(this);
 			}
 			// startAdvertising(); //- do this with some delay from the loop()
-			BLEDevice::removePeerDevice(param->disconnect.conn_id);
+			removePeerDevice(param->disconnect.conn_id, false);
 			break;
 		} // ESP_GATTS_DISCONNECT_EVT
 
@@ -318,6 +323,11 @@ void BLEServer::handleGATTServerEvent(
 		default: {
 			break;
 		}
+		// for(auto &myPair : BLEDevice::getPeerDevices(false)) {
+		// conn_status_t conn_status = (conn_status_t)myPair.second;
+		// ESP_LOGE(LOG_TAG, " gattc_if: %d, conn_id %d", gatts_if, ((BLEServer*)conn_status.peer_device)->getConnId());
+		// 		((BLEServer*)conn_status.peer_device)->handleGATTServerEvent(event, gatts_if, param);
+		// }
 	}
 	ESP_LOGD(LOG_TAG, "<< handleGATTServerEvent");
 } // handleGATTServerEvent
@@ -328,7 +338,7 @@ void BLEServer::handleGATTServerEvent(
  *
  * @return N/A
  */
-void BLEServer::registerApp() {
+void BLEServer::registerApp(uint16_t m_appId) {
 	ESP_LOGD(LOG_TAG, ">> registerApp - %d", m_appId);
 	m_semaphoreRegisterAppEvt.take("registerApp"); // Take the mutex, will be released by ESP_GATTS_REG_EVT event.
 	::esp_ble_gatts_app_register(m_appId);
@@ -415,5 +425,68 @@ void BLEServerCallbacks::onDisconnect(BLEServer* pServer) {
 	ESP_LOGD("BLEServerCallbacks", "Device: %s", BLEDevice::toString().c_str());
 	ESP_LOGD("BLEServerCallbacks", "<< onDisconnect()");
 } // onDisconnect
+
+/* multiconnect */
+void BLEServer::updateMTU(uint16_t conn_id, uint16_t mtu) {
+	// set mtu in conn_status_t
+	ESP_LOGI(LOG_TAG, "update mtu: %d, conn_id: %d, map size: %d", mtu, conn_id, m_connectedServersMap.size());
+	const std::map<uint16_t, conn_status_t>::iterator it = m_connectedServersMap.find(conn_id);
+	if (it != m_connectedServersMap.end()) {
+		it->second.mtu = mtu;
+		std::swap(m_connectedServersMap[conn_id], it->second);
+	}
+	ESP_LOGI(LOG_TAG, "update mtu: %d, conn_id: %d, map size: %d", mtu, conn_id, m_connectedServersMap.size());
+}
+
+std::map<uint16_t, conn_status_t> BLEServer::getPeerDevices(bool _client) {
+	return m_connectedServersMap;
+}
+
+// BLEServer* BLEDevice::getServerByConnId(uint16_t conn_id) {
+// 	return (BLEServer*)m_connectedServersMap.find(conn_id)->second.peer_device;
+// }
+
+uint16_t BLEServer::getPeerMTU(uint16_t conn_id) {
+	return m_connectedServersMap.find(conn_id)->second.mtu;
+}
+
+// void BLEDevice::updatePeerDevice(void* peer, bool _client, uint16_t conn_id) {
+// ESP_LOGI(LOG_TAG, "update conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
+// 	if(_client){
+// 		const std::map<uint16_t, conn_status_t>::iterator it = m_connectedClientsMap.find(ESP_GATT_IF_NONE);
+// 		if (it != m_connectedClientsMap.end()) {
+// 			std::swap(m_connectedClientsMap[conn_id], it->second);
+// 			m_connectedClientsMap.erase(it);
+// ESP_LOGI(LOG_TAG, "update 2 conn_id: %d, GATT role: %s", m_connectedClientsMap.size(), _client? "client":"server");
+// 		}	
+// 	}else{
+// 		const std::map<uint16_t, conn_status_t>::iterator it = m_connectedServersMap.find(ESP_GATT_IF_NONE);
+// 		if (it != m_connectedServersMap.end()) {
+// 			it->second.peer_device = peer;
+// 			std::swap(m_connectedServersMap[conn_id], it->second);
+// 			m_connectedServersMap.erase(it);
+// ESP_LOGI(LOG_TAG, "update 3 conn_id: %d, GATT role: %s", m_connectedServersMap.size(), _client? "client":"server");
+// 		}	
+// 	}
+// }
+
+void BLEServer::addPeerDevice(void* peer, bool _client, uint16_t conn_id) {
+ESP_LOGI(LOG_TAG, "add conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
+	conn_status_t status = {
+		.peer_device = peer,
+		.connected = true,
+		.mtu = 23
+	};
+
+	ESP_LOGI(LOG_TAG, "add 2 conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
+	m_connectedServersMap.insert(std::pair<uint16_t, conn_status_t>(conn_id, status));
+	
+}
+
+void BLEServer::removePeerDevice(uint16_t conn_id, bool _client) {
+	ESP_LOGI(LOG_TAG, "remove: %d, GATT role %s", conn_id, _client?"client":"server");
+	m_connectedServersMap.erase(conn_id);
+}
+
 
 #endif // CONFIG_BT_ENABLED

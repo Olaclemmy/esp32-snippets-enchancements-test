@@ -53,9 +53,9 @@ public:
 	std::string                                toString();                    // Return a string representation of this client.
 	uint16_t                                   getConnId();
 	esp_gatt_if_t                              getGattcIf();
+	uint16_t								   getMTU();
 
 uint16_t m_appId;
-uint16_t m_mtu;
 private:
 	friend class BLEDevice;
 	friend class BLERemoteService;
@@ -82,6 +82,7 @@ private:
 	std::map<std::string, BLERemoteService*> m_servicesMap;
 	std::map<BLERemoteService*, uint16_t> m_servicesMapByInstID;
 	void clearServices();   // Clear any existing services.
+	uint16_t m_mtu = 23;
 
 }; // class BLEDevice
 

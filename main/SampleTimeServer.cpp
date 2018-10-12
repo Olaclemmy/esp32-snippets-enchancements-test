@@ -52,8 +52,13 @@ typedef struct {
     uint8_t adjust = 0;
 }bt_time_t;
 
+#define TICKS_TO_DELAY 1000
+
 void task(void *p)
 {
+    TickType_t last_wake_time;
+    last_wake_time = xTaskGetTickCount();
+
     struct timeval tv;
     bt_time_t _time;
     struct tm* _t;
@@ -72,7 +77,8 @@ void task(void *p)
         // ESP_LOGI(LOG_TAG, "%s", asctime(_t));
 		((BLECharacteristic*)p)->setValue((uint8_t*)&_time, sizeof(bt_time_t));
 		((BLECharacteristic*)p)->notify();
-		vTaskDelay(100);
+// send notification with date/time exactly every TICKS_TO_DELAY ms
+        vTaskDelayUntil(&last_wake_time, TICKS_TO_DELAY/portTICK_PERIOD_MS);
 	}
 	vTaskDelete(NULL);
 }

@@ -24,12 +24,11 @@
 /**
  * @brief %BLE functions.
  */
-typedef struct {
-	void *peer_device;
-	// BLEAddress address;
-	bool connected;
-	bool is_client;
-} conn_status_t;
+// typedef struct {
+// 	void *peer_device;
+// 	bool connected;
+// 	uint16_t mtu;
+// } conn_status_t;
 
 class BLEDevice {
 public:
@@ -54,9 +53,15 @@ public:
 	static void		   startAdvertising();
 	static uint16_t 	m_appId;
 	/* multi connect */
-	static std::map<uint16_t, conn_status_t> getPeerDevices();
-	static void addPeerDevice(void* peer, bool is_client);
-	static void removePeerDevice(uint16_t conn_id);
+	static std::map<uint16_t, conn_status_t> getPeerDevices(bool client);
+	static void addPeerDevice(void* peer, bool is_client, uint16_t conn_id);
+	static void updatePeerDevice(void* peer, bool _client, uint16_t conn_id);
+	static void removePeerDevice(uint16_t conn_id, bool client);
+	static BLEClient* getClientByGattIf(uint16_t conn_id);
+	// static BLEServer* getServerByConnId(uint16_t conn_id);
+	// static uint16_t getPeerMTU(uint16_t conn_id);
+	// static void setRemoteMTU(uint16_t connId, uint16_t mtu);
+
 	static void deinit(bool release_memory = false);
 	static uint16_t		m_localMTU;
 	static esp_ble_sec_act_t 	m_securityLevel;
@@ -68,7 +73,8 @@ private:
 	static BLESecurityCallbacks* m_securityCallbacks;
 	static BLEAdvertising *m_bleAdvertising;
 	static esp_gatt_if_t getGattcIF();
-	static std::map<uint16_t, conn_status_t> m_connectedDevicesMap;
+	static std::map<uint16_t, conn_status_t> m_connectedClientsMap;
+	// static std::map<uint16_t, conn_status_t> m_connectedServersMap;
 
 	static void gattClientEventHandler(
 		esp_gattc_cb_event_t      event,

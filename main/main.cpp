@@ -36,7 +36,7 @@ void app_main(void) {
 	//Sample_MLE_15();
 	//Sample1();
 	//SampleAsyncScan();
-	// SampleClient();
+	SampleClient();
 	//SampleClient_Notify();
 	//SampleClientAndServer();
 	//SampleClientDisconnect();
@@ -45,11 +45,10 @@ void app_main(void) {
 	//SampleRead();
 	//SampleSensorTag();
 	//SampleScan();
-	// vTaskDelay(5000);
 	// SampleServer();
 	//SampleWrite();
 	// SampleClient_authentication_numeric_confirmation();
 	// SampleServer_Authorization();	
 	// SampleCentralServer();
-	wifi_test();
+	// wifi_test();
 } // app_main

@@ -13,6 +13,7 @@
 
 #include <string>
 #include <string.h>
+// #include "BLEDevice.h"
 
 #include "BLEUUID.h"
 #include "BLEAdvertising.h"
@@ -23,6 +24,11 @@
 #include "BLEAddress.h"
 
 class BLEServerCallbacks;
+typedef struct {
+	void *peer_device;
+	bool connected;
+	uint16_t mtu;
+} conn_status_t;
 
 
 /**
@@ -68,6 +74,13 @@ public:
 	BLEService* 	getServiceByUUID(BLEUUID uuid);
 	bool 			connect(BLEAddress address);
 	uint16_t            m_appId;
+	std::map<uint16_t, conn_status_t> getPeerDevices(bool client);
+	void addPeerDevice(void* peer, bool is_client, uint16_t conn_id);
+	void removePeerDevice(uint16_t conn_id, bool client);
+	BLEServer* getServerByConnId(uint16_t conn_id);
+	void updateMTU(uint16_t connId, uint16_t mtu);
+	uint16_t getPeerMTU(uint16_t conn_id);
+
 
 private:
 	BLEServer();
@@ -79,6 +92,8 @@ private:
   uint16_t						m_connId;
   uint32_t            m_connectedCount;
   uint16_t            m_gatts_if;
+  	std::map<uint16_t, conn_status_t> m_connectedServersMap;
+
 	FreeRTOS::Semaphore m_semaphoreRegisterAppEvt = FreeRTOS::Semaphore("RegisterAppEvt");
 	FreeRTOS::Semaphore m_semaphoreCreateEvt = FreeRTOS::Semaphore("CreateEvt");
 	FreeRTOS::Semaphore m_semaphoreOpenEvt   = FreeRTOS::Semaphore("OpenEvt");
@@ -90,7 +105,8 @@ private:
 	uint16_t        getGattsIf();
 	void            handleGAPEvent(esp_gap_ble_cb_event_t event,	esp_ble_gap_cb_param_t *param);
 	void            handleGATTServerEvent(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
-	void            registerApp();
+	void            registerApp(uint16_t);
+
 }; // BLEServer
 
 

@@ -369,10 +369,12 @@ void BLECharacteristic::handleGATTServerEvent(
 // The following code has deliberately not been factored to make it fewer statements because this would cloud the
 // the logic flow comprehension.
 //
-				uint16_t maxOffset = BLEDevice::getMTU() - 1;
-				if (BLEDevice::getMTU() > 517) {
-					maxOffset = 517 - 1;
-				}
+				ESP_LOGI(LOG_TAG, "mtu value: %d", param->read.conn_id);
+				uint16_t maxOffset =  getService()->getServer()->getPeerMTU(param->read.conn_id) - 1;
+				// if (maxOffset >= 517) {
+				// 	maxOffset = 517 - 1;
+				// }
+				ESP_LOGI(LOG_TAG, "mtu value: %d", maxOffset);
 				if (param->read.need_rsp) {
 					ESP_LOGD(LOG_TAG, "Sending a response (esp_ble_gatts_send_response)");
 					esp_gatt_rsp_t rsp;
@@ -561,27 +563,29 @@ void BLECharacteristic::notify(bool is_notification) {
 			return;
 		}
 	}
-	for (auto &myPair : BLEDevice::getPeerDevices()) {
-if(!myPair.second.is_client){
-		if (m_value.getValue().length() > (BLEDevice::getMTU() - 3)) {
-			ESP_LOGW(LOG_TAG, "- Truncating to %d bytes (maximum notify size)", BLEDevice::getMTU() - 3);
+	for (auto &myPair : getService()->getServer()->getPeerDevices(false)) {
+// if(!myPair.second.is_client){
+		uint16_t _mtu = (myPair.second.mtu);
+		if (m_value.getValue().length() > _mtu - 3) {
+			ESP_LOGW(LOG_TAG, "- Truncating to %d bytes (maximum notify size)", _mtu - 3);
 		}
 
 		size_t length = m_value.getValue().length();
 
 		m_semaphoreConfEvt.take("notify");
-
+ESP_LOGI(LOG_TAG, "notify mtu: %d, conn_id: %d", _mtu, myPair.first);
 		esp_err_t errRc = ::esp_ble_gatts_send_indicate(
 				getService()->getServer()->getGattsIf(),
 				myPair.first,
 				getHandle(), length, (uint8_t*)m_value.getValue().data(), !is_notification); // The need_confirm = false makes this a notify.
 		if (errRc != ESP_OK) {
-			ESP_LOGE(LOG_TAG, "<< esp_ble_gatts_send_indicate: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
+			ESP_LOGE(LOG_TAG, "<< esp_ble_gatts_send_ %s: rc=%d %s",is_notification?"notify":"indicate", errRc, GeneralUtils::errorToString(errRc));
+			m_semaphoreConfEvt.give();
 			return;
 		}
 
 		m_semaphoreConfEvt.wait("notify");
-}
+// }
 	}
 	ESP_LOGD(LOG_TAG, "<< notify");
 } // Notify

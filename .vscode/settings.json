@@ -35,7 +35,15 @@
         "typeinfo": "cpp",
         "utility": "cpp",
         "string": "cpp",
-        "cstdarg": "cpp"
+        "cstdarg": "cpp",
+        "bitset": "cpp",
+        "chrono": "cpp",
+        "cinttypes": "cpp",
+        "cstring": "cpp",
+        "list": "cpp",
+        "iostream": "cpp",
+        "memory": "cpp",
+        "ratio": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled",
     "C_Cpp.intelliSenseEngineFallback": "Enabled"

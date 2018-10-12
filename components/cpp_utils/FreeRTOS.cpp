@@ -95,7 +95,9 @@ bool rc = false;
 
 	ESP_LOGV(LOG_TAG, "<< wait: Semaphore released: %s", toString().c_str());
 	if(rc)
-	m_owner = std::string("<N/A>");
+		m_owner = std::string("<N/A>");
+
+	vTaskDelay(1);
 	return m_value;
 } // wait
 
