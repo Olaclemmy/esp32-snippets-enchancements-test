@@ -56,7 +56,7 @@ public:
 	void setAdvertisementData(BLEAdvertisementData& advertisementData);
 	void setScanFilter(bool scanRequertWhitelistOnly, bool connectWhitelistOnly);
 	void setScanResponseData(BLEAdvertisementData& advertisementData);
-	void setPrivateAddress();
+	void setPrivateAddress(esp_ble_addr_type_t type = BLE_ADDR_TYPE_RANDOM);
 private:
 	esp_ble_adv_data_t   m_advData;
 	esp_ble_adv_params_t m_advParams;

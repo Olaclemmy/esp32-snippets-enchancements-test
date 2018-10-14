@@ -515,6 +515,14 @@ void BLEAdvertisedDevice::setPayload(uint8_t* payload) {
 	m_payload = payload;
 }
 
+esp_ble_addr_type_t BLEAdvertisedDevice::getAddressType() {
+	return m_addressType;
+}
+
+void BLEAdvertisedDevice::setAddressType(esp_ble_addr_type_t type) {
+	m_addressType = type;
+}
+
 
 #endif /* CONFIG_BT_ENABLED */
 

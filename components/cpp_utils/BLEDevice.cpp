@@ -48,8 +48,8 @@ uint16_t   BLEDevice::m_localMTU = 23;
 BLEAdvertising* BLEDevice::m_bleAdvertising = nullptr;
 uint16_t BLEDevice::m_appId = 0;
 std::map<uint16_t, conn_status_t> BLEDevice::m_connectedClientsMap;
-// std::map<uint16_t, conn_status_t> BLEDevice::m_connectedServersMap;
 
+// std::vector<BLEAdvertising *> BLEDevice::m_bleAdvertisingVector; //new BLEAdvertising();
 /**
  * @brief Create a new instance of a client.
  * @return A new instance of the client.
@@ -162,7 +162,7 @@ std::map<uint16_t, conn_status_t> BLEDevice::m_connectedClientsMap;
 		// ESP_LOGE(LOG_TAG, " gattc_if: %d == %d", gattc_if, ((BLEClient*)conn_status.peer_device)->getGattcIf());
 
 		// if(conn_status.is_client) {
-			if(((BLEClient*)conn_status.peer_device)->getGattcIf() == gattc_if || ((BLEClient*)conn_status.peer_device)->getGattcIf() == 0 || gattc_if == ESP_GATT_IF_NONE){
+			if(((BLEClient*)conn_status.peer_device)->getGattcIf() == gattc_if || ((BLEClient*)conn_status.peer_device)->getGattcIf() == ESP_GATT_IF_NONE || gattc_if == ESP_GATT_IF_NONE){
 				((BLEClient*)conn_status.peer_device)->gattClientEventHandler(event, gattc_if, param);
 			}
 		// }
@@ -544,97 +544,73 @@ bool BLEDevice::getInitialized() {
 	return initialized;
 }
 
-BLEAdvertising* BLEDevice::getAdvertising() {
+BLEAdvertising* BLEDevice::getAdvertising(uint8_t index) {
 	if(m_bleAdvertising == nullptr)
 	{
 		m_bleAdvertising = new BLEAdvertising();
 		ESP_LOGI(LOG_TAG, "create advertising");
 	}
+
+// testing possibility to start multiple advertising
+	// try{
+	// 	return m_bleAdvertisingVector.at(index);
+	// }
+	// catch (const std::out_of_range& oor){
+	// 	m_bleAdvertisingVector.push_back(new BLEAdvertising());
+	// 	ESP_LOGI(LOG_TAG, "create advertising");
+	// }
+
 	ESP_LOGD(LOG_TAG, "get advertising");
-	return m_bleAdvertising;
+	return m_bleAdvertising; //Vector.at(index);
 }
 
-void BLEDevice::startAdvertising() {
+void BLEDevice::startAdvertising(uint8_t index) {
 	ESP_LOGD(LOG_TAG, ">> startAdvertising");
-	getAdvertising()->start();
+	getAdvertising(index)->start();
 	ESP_LOGD(LOG_TAG, "<< startAdvertising");
 } // startAdvertising
 
 /* multi connect support */
 std::map<uint16_t, conn_status_t> BLEDevice::getPeerDevices(bool _client) {
-	// if(_client)
-		return m_connectedClientsMap;
-	// else
-	// 	return m_connectedServersMap;
+	return m_connectedClientsMap;
 }
 
 BLEClient* BLEDevice::getClientByGattIf(uint16_t conn_id) {
 	return (BLEClient*)m_connectedClientsMap.find(conn_id)->second.peer_device;
 }
 
-// BLEServer* BLEDevice::getServerByConnId(uint16_t conn_id) {
-// 	return (BLEServer*)m_connectedServersMap.find(conn_id)->second.peer_device;
-// }
-
-// uint16_t BLEDevice::getPeerMTU(uint16_t conn_id) {
-// 	return m_connectedServersMap.find(conn_id)->second.mtu;
-// }
-
 void BLEDevice::updatePeerDevice(void* peer, bool _client, uint16_t conn_id) {
-ESP_LOGI(LOG_TAG, "update conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
-	// if(_client){
-		const std::map<uint16_t, conn_status_t>::iterator it = m_connectedClientsMap.find(ESP_GATT_IF_NONE);
+	ESP_LOGD(LOG_TAG, "update conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
+	std::map<uint16_t, conn_status_t>::iterator it = m_connectedClientsMap.find(ESP_GATT_IF_NONE);
+	if (it != m_connectedClientsMap.end()) {
+		std::swap(m_connectedClientsMap[conn_id], it->second);
+		m_connectedClientsMap.erase(it);
+	}else{
+		it = m_connectedClientsMap.find(conn_id);
 		if (it != m_connectedClientsMap.end()) {
-			std::swap(m_connectedClientsMap[conn_id], it->second);
-			m_connectedClientsMap.erase(it);
-ESP_LOGI(LOG_TAG, "update 2 conn_id: %d, GATT role: %s", m_connectedClientsMap.size(), _client? "client":"server");
-		}	
-	// }
-	// else{
-// 		const std::map<uint16_t, conn_status_t>::iterator it = m_connectedServersMap.find(ESP_GATT_IF_NONE);
-// 		if (it != m_connectedServersMap.end()) {
-// 			it->second.peer_device = peer;
-// 			std::swap(m_connectedServersMap[conn_id], it->second);
-// 			m_connectedServersMap.erase(it);
-// ESP_LOGI(LOG_TAG, "update 3 conn_id: %d, GATT role: %s", m_connectedServersMap.size(), _client? "client":"server");
-		// }	
-	// }
+			conn_status_t _st = it->second;
+			_st.peer_device = peer;
+			std::swap(m_connectedClientsMap[conn_id], _st);
+		}
+	}
 }
 
 void BLEDevice::addPeerDevice(void* peer, bool _client, uint16_t conn_id) {
-ESP_LOGI(LOG_TAG, "add conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
+	ESP_LOGI(LOG_TAG, "add conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
 	conn_status_t status = {
 		.peer_device = peer,
 		.connected = true,
 		.mtu = 23
 	};
 
-	ESP_LOGI(LOG_TAG, "add 2 conn_id: %d, GATT role: %s", conn_id, _client? "client":"server");
-	// if(_client) {
-		m_connectedClientsMap.insert(std::pair<uint16_t, conn_status_t>(conn_id, status));
-	// }else{
-	// 	m_connectedServersMap.insert(std::pair<uint16_t, conn_status_t>(conn_id, status));
-	// }
+	m_connectedClientsMap.insert(std::pair<uint16_t, conn_status_t>(conn_id, status));
 }
 
 void BLEDevice::removePeerDevice(uint16_t conn_id, bool _client) {
 	ESP_LOGI(LOG_TAG, "remove: %d, GATT role %s", conn_id, _client?"client":"server");
-	// if(_client)
-		m_connectedClientsMap.erase(conn_id);
-	// else
-	// 	m_connectedServersMap.erase(conn_id);
+	m_connectedClientsMap.erase(conn_id);
 }
 
-// void BLEDevice::setRemoteMTU(uint16_t conn_id, uint16_t mtu) {
-// 	// set mtu in conn_status_t
-// 	ESP_LOGI(LOG_TAG, "update mtu: %d, conn_id: %d, map size: %d", mtu, conn_id, m_connectedServersMap.size());
-// 	const std::map<uint16_t, conn_status_t>::iterator it = m_connectedServersMap.find(conn_id);
-// 	if (it != m_connectedServersMap.end()) {
-// 		it->second.mtu = mtu;
-// 		std::swap(m_connectedServersMap[conn_id], it->second);
-// 	}
-// 	ESP_LOGI(LOG_TAG, "update mtu: %d, conn_id: %d, map size: %d", mtu, conn_id, m_connectedServersMap.size());
-// }
 /* multi connect support */
 
 /**

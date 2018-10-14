@@ -30,7 +30,7 @@ Task::Task(std::string taskName, uint16_t stackSize, uint8_t priority) {
 	m_priority  = priority;
 	m_taskData  = nullptr;
 	m_handle    = nullptr;
-	m_coreId	= tskNO_AFFINITY;
+	m_coreId	= CONFIG_BTDM_CONTROLLER_PINNED_TO_CORE;  // <--- change to use by default the same core as bt stack
 } // Task
 
 Task::~Task() {

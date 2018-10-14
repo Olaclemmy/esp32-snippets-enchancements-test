@@ -34,8 +34,8 @@ static const char* LOG_TAG = "BLEServer";
  * the BLEDevice class.
  */
 BLEServer::BLEServer() {
-	m_appId            = -1;
-	m_gatts_if         = -1;
+	m_appId            = ESP_GATT_IF_NONE;
+	m_gatts_if         = ESP_GATT_IF_NONE;
 	m_connectedCount   = 0;
 	m_connId           = ESP_GATT_IF_NONE;
 	m_pServerCallbacks = nullptr;
@@ -46,7 +46,6 @@ BLEServer::BLEServer() {
 
 void BLEServer::createApp(uint16_t appId) {
 	m_appId = appId;
-		// BLEDevice::addPeerDevice((void*)this, false, ESP_GATT_IF_NONE);
 	registerApp(appId);
 } // createApp
 
@@ -82,8 +81,6 @@ BLEService* BLEServer::createService(BLEUUID uuid, uint32_t numHandles, uint8_t 
 	if (m_serviceMap.getByUUID(uuid) != nullptr) {
 		ESP_LOGW(LOG_TAG, "<< Attempt to create a new service with uuid %s but a service with that UUID already exists.",
 			uuid.toString().c_str());
-		//m_semaphoreCreateEvt.give();
-		//return nullptr;
 	}
 
 	BLEService* pService = new BLEService(uuid, numHandles);
@@ -152,26 +149,8 @@ uint16_t BLEServer::getGattsIf() {
 void BLEServer::handleGAPEvent(
 		esp_gap_ble_cb_event_t  event,
 		esp_ble_gap_cb_param_t* param) {
-	ESP_LOGD(LOG_TAG, "BLEServer ... handling GAP event!");
+	ESP_LOGD(LOG_TAG, "BLEServer ... handling GAP event!");  // <--- do we need GAP handler in GATT server role?
 	switch(event) {
-		case ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT: {
-			/*
-			esp_ble_adv_params_t adv_params;
-			adv_params.adv_int_min       = 0x20;
-			adv_params.adv_int_max       = 0x40;
-			adv_params.adv_type          = ADV_TYPE_IND;
-			adv_params.own_addr_type     = BLE_ADDR_TYPE_PUBLIC;
-			adv_params.channel_map       = ADV_CHNL_ALL;
-			adv_params.adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY;
-			ESP_LOGD(tag, "Starting advertising");
-			esp_err_t errRc = ::esp_ble_gap_start_advertising(&adv_params);
-			if (errRc != ESP_OK) {
-				ESP_LOGE(tag, "esp_ble_gap_start_advertising: rc=%d %s", errRc, espToString(errRc));
-				return;
-			}
-			*/
-			break;
-		}
 
 		default:
 			break;
@@ -223,8 +202,8 @@ void BLEServer::handleGATTServerEvent(
 		// - esp_bd_addr_t remote_bda
 		//
 		case ESP_GATTS_CONNECT_EVT: {
-			// BLEDevice::addPeerDevice((void*)this, false, param->connect.conn_id);
-			addPeerDevice((void*)this, false, param->connect.conn_id);
+			m_connId = param->connect.conn_id;
+			addPeerDevice((void*)this, false, m_connId);
 			if (m_pServerCallbacks != nullptr) {
 				m_pServerCallbacks->onConnect(this);
 				m_pServerCallbacks->onConnect(this, param);			
@@ -243,7 +222,7 @@ void BLEServer::handleGATTServerEvent(
 		// * esp_gatt_srvc_id_t service_id
 		//
 		case ESP_GATTS_CREATE_EVT: {
-			BLEService* pService = m_serviceMap.getByUUID(param->create.service_id.id.uuid);
+			BLEService* pService = m_serviceMap.getByUUID(param->create.service_id.id.uuid);  // <--- very big bug for multi services with the same uuid
 			m_serviceMap.setByHandle(param->create.service_handle, pService);
 			m_semaphoreCreateEvt.give();
 			break;

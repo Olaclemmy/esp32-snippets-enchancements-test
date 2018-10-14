@@ -49,8 +49,8 @@ public:
 	static esp_err_t   setMTU(uint16_t mtu);
 	static uint16_t	   getMTU();
 	static bool        getInitialized(); // Returns the state of the device, is it initialized or not?
-	static BLEAdvertising* getAdvertising();
-	static void		   startAdvertising();
+	static BLEAdvertising* getAdvertising(uint8_t index=0);
+	static void		   startAdvertising(uint8_t index=0);
 	static uint16_t 	m_appId;
 	/* multi connect */
 	static std::map<uint16_t, conn_status_t> getPeerDevices(bool client);
@@ -74,7 +74,8 @@ private:
 	static BLEAdvertising *m_bleAdvertising;
 	static esp_gatt_if_t getGattcIF();
 	static std::map<uint16_t, conn_status_t> m_connectedClientsMap;
-	// static std::map<uint16_t, conn_status_t> m_connectedServersMap;
+	
+	static std::vector<BLEAdvertising *> m_bleAdvertisingVector;
 
 	static void gattClientEventHandler(
 		esp_gattc_cb_event_t      event,

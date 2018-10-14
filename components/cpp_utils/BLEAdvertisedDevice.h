@@ -40,6 +40,8 @@ public:
 	BLEUUID     getServiceUUID();
 	int8_t      getTXPower();
 	uint8_t* 	getPayload();
+	esp_ble_addr_type_t getAddressType();
+	void setAddressType(esp_ble_addr_type_t type);
 
 
 	bool		isAdvertisingService(BLEUUID uuid);
@@ -95,6 +97,7 @@ private:
 	std::string m_serviceData;
 	BLEUUID     m_serviceDataUUID;
 	uint8_t*	m_payload;
+	esp_ble_addr_type_t m_addressType;
 };
 
 /**

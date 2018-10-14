@@ -61,8 +61,8 @@ BLEAdvertising::BLEAdvertising() {
 	m_customScanResponseData      = false;   // No custom scan response data
 } // BLEAdvertising
 
-void BLEAdvertising::setPrivateAddress() {
-	m_advParams.own_addr_type = BLE_ADDR_TYPE_RPA_RANDOM;
+void BLEAdvertising::setPrivateAddress(esp_ble_addr_type_t type) {
+	m_advParams.own_addr_type = type;
 	esp_ble_gap_config_local_privacy(true);
 }
 
@@ -211,16 +211,16 @@ void BLEAdvertising::start() {
 		}
 	}
 
-	// if (m_customScanResponseData == false) {
-	// 	m_advData.set_scan_rsp = true;
-	// 	m_advData.include_name = true;
-	// 	m_advData.include_txpower = true;
-	// 	errRc = ::esp_ble_gap_config_adv_data(&m_advData);
-	// 	if (errRc != ESP_OK) {
-	// 		ESP_LOGE(LOG_TAG, "<< esp_ble_gap_config_adv_data (Scan response): rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
-	// 		return;
-	// 	}
-	// }
+	if (m_customScanResponseData == false) {
+		m_advData.set_scan_rsp = true;
+		// m_advData.include_name = true;
+		// m_advData.include_txpower = true;
+		errRc = ::esp_ble_gap_config_adv_data(&m_advData);
+		if (errRc != ESP_OK) {
+			ESP_LOGE(LOG_TAG, "<< esp_ble_gap_config_adv_data (Scan response): rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
+			return;
+		}
+	}
 
 	// If we had services to advertise then we previously allocated some storage for them.
 	// Here we release that storage.

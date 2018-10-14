@@ -47,8 +47,8 @@ static const char* LOG_TAG = "BLEClient";
 
 BLEClient::BLEClient() {
 	m_pClientCallbacks = nullptr;
-	m_conn_id          = 0;
-	m_gattc_if         = 0;
+	m_conn_id          = ESP_GATT_IF_NONE;
+	m_gattc_if         = ESP_GATT_IF_NONE;
 	m_haveServices     = false;
 	m_isConnected      = false;  // Initially, we are flagged as not connected.
 } // BLEClient
@@ -82,13 +82,18 @@ void BLEClient::clearServices() {
 	ESP_LOGD(LOG_TAG, "<< clearServices");
 } // clearServices
 
+bool BLEClient::connect(BLEAdvertisedDevice* device) {
+	BLEAddress address =  device->getAddress();
+	esp_ble_addr_type_t type = device->getAddressType();
+	return connect(address, type);
+}
 
 /**
  * @brief Connect to the partner (BLE Server).
  * @param [in] address The address of the partner.
  * @return True on success.
  */
-bool BLEClient::connect(BLEAddress address) {
+bool BLEClient::connect(BLEAddress address, esp_ble_addr_type_t type) {
 	ESP_LOGD(LOG_TAG, ">> connect(%s)", address.toString().c_str());
 
 // We need the connection handle that we get from registering the application.  We register the app
@@ -97,7 +102,7 @@ bool BLEClient::connect(BLEAddress address) {
 	BLEDevice::addPeerDevice(this, true, ESP_GATT_IF_NONE);
 	m_semaphoreRegEvt.take("connect");
 
-	clearServices(); // Delete any services that may exist.
+	// clearServices(); // Delete any services that may exist.
 	esp_err_t errRc = ::esp_ble_gattc_app_register(m_appId);
 	if (errRc != ESP_OK) {
 		ESP_LOGE(LOG_TAG, "esp_ble_gattc_app_register: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
@@ -113,7 +118,7 @@ bool BLEClient::connect(BLEAddress address) {
 	errRc = ::esp_ble_gattc_open(
 		getGattcIf(),
 		*getPeerAddress().getNative(), // address
-		BLE_ADDR_TYPE_PUBLIC,          // Note: This was added on 2018-04-03 when the latest ESP-IDF was detected to have changed the signature.
+		type,          // Note: This was added on 2018-04-03 when the latest ESP-IDF was detected to have changed the signature.
 		1                              // direct connection
 	);
 	if (errRc != ESP_OK) {
@@ -138,7 +143,7 @@ void BLEClient::disconnect() {
 		ESP_LOGE(LOG_TAG, "esp_ble_gattc_close: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
 		return;
 	}
-	esp_ble_gattc_app_unregister(getGattcIf());
+	// esp_ble_gattc_app_unregister(getGattcIf());
 	// m_peerAddress = BLEAddress("00:00:00:00:00:00");
 	ESP_LOGD(LOG_TAG, "<< disconnect()");
 } // disconnect
@@ -152,8 +157,17 @@ void BLEClient::gattClientEventHandler(
 	esp_gatt_if_t             gattc_if,
 	esp_ble_gattc_cb_param_t* evtParam) {
 
+	ESP_LOGD(LOG_TAG, "gattClientEventHandler [esp_gatt_if: %d] ... %s",
+		gattc_if, BLEUtils::gattClientEventTypeToString(event).c_str());
+
 	// Execute handler code based on the type of event received.
 	switch(event) {
+
+		case ESP_GATTC_CLOSE_EVT: {
+				esp_ble_gattc_app_unregister(m_appId);
+				BLEDevice::removePeerDevice(m_gattc_if, true);
+			break;
+		}
 
 		//
 		// ESP_GATTC_DISCONNECT_EVT
@@ -165,12 +179,10 @@ void BLEClient::gattClientEventHandler(
 		case ESP_GATTC_DISCONNECT_EVT: {
 				// If we receive a disconnect event, set the class flag that indicates that we are
 				// no longer connected.
-					if (m_pClientCallbacks != nullptr) {
-						m_pClientCallbacks->onDisconnect(this);
-					}
-					disconnect();
-					m_isConnected = false;
-				BLEDevice::removePeerDevice(m_appId, true);
+				if (m_pClientCallbacks != nullptr) {
+					m_pClientCallbacks->onDisconnect(this);
+				}
+				m_isConnected = false;
 				m_semaphoreRssiCmplEvt.give();
 				m_semaphoreSearchCmplEvt.give(1);
 				break;
@@ -403,12 +415,12 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 	esp_err_t errRc;
 	clearServices(); // Clear any services that may exist.
 	errRc = esp_ble_gattc_get_service(getGattcIf(), getConnId(), NULL, result, &count, 0);
-	ESP_LOGI(LOG_TAG, "esp_ble_gattc_get_service: %d services found in cache", count);
 #ifdef CONFIG_GATTC_CACHE_NVS_FLASH
-	if(count == 0) {
+	if(count < 3) {   // <-- its just temporary, because we can have esp-df bt stack bug here
 #else
 	if(true) {
 #endif
+	ESP_LOGD(LOG_TAG, "esp_ble_gattc_get_service: %d services from peer device", count);
 		errRc = esp_ble_gattc_search_service(
 			getGattcIf(),
 			getConnId(),
@@ -423,8 +435,8 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 		// If sucessfull, remember that we now have services.
 		m_haveServices = (m_semaphoreSearchCmplEvt.wait("getServices") == 0);
 	}else{
-		// result++;
-		// result++;
+		ESP_LOGD(LOG_TAG, "esp_ble_gattc_get_service: %d services from cache", count);
+
 		for(int i=0; i<count;i++){
 			esp_gattc_service_elem_t srv = *result;
 			esp_gatt_id_t id = {
@@ -447,7 +459,7 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 			ESP_LOGI(LOG_TAG, "%s", pRemoteService->toString().c_str());
 		}
 	}
-	// free(result-count);
+	// free(result-count);  // <--- TODO fix possible memory leak
 	ESP_LOGD(LOG_TAG, "<< getServices");
 	return &m_servicesMap;
 } // getServices

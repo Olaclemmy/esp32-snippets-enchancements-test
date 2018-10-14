@@ -139,26 +139,14 @@ esp_err_t adder_put_handler(httpd_req_t *req)
  * the "/adder" URI has been visited */
 static unsigned visitors = 0;
 
-httpd_uri_t adder_post = {
-    .uri      = "/adder",
-    .method   = HTTP_POST,
-    .handler  = adder_post_handler,
-    .user_ctx = &visitors
-};
 
 httpd_uri_t adder_get = {
-    .uri      = "/adder",
+    .uri      = "/",
     .method   = HTTP_GET,
     .handler  = adder_get_handler,
     .user_ctx = &visitors
 };
 
-httpd_uri_t adder_put = {
-    .uri      = "/adder",
-    .method   = HTTP_PUT,
-    .handler  = adder_put_handler,
-    .user_ctx = &visitors
-};
 
 httpd_handle_t start_webserver(void)
 {
@@ -171,8 +159,6 @@ httpd_handle_t start_webserver(void)
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &adder_get);
-        httpd_register_uri_handler(server, &adder_put);
-        httpd_register_uri_handler(server, &adder_post);
         return server;
     }
 
@@ -230,8 +216,8 @@ static void initialise_wifi(void *arg)
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = "chege24",
-            .password = "1234567890",
+            .ssid = "SSID",
+            .password = "PASS",
         },
     };
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);

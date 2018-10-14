@@ -19,9 +19,11 @@
 #include "BLERemoteService.h"
 #include "BLEService.h"
 #include "BLEAddress.h"
+#include "BLEAdvertisedDevice.h"
 
 class BLERemoteService;
 class BLEClientCallbacks;
+class BLEAdvertisedDevice;
 
 /**
  * @brief A model of a %BLE client.
@@ -31,7 +33,8 @@ public:
 	BLEClient();
 	~BLEClient();
 
-	bool                                       connect(BLEAddress address);   // Connect to the remote BLE Server
+	bool 									   connect(BLEAdvertisedDevice* device);
+	bool                                       connect(BLEAddress address, esp_ble_addr_type_t type = BLE_ADDR_TYPE_PUBLIC);   // Connect to the remote BLE Server
 	void                                       disconnect();                  // Disconnect from the remote BLE Server
 	BLEAddress                                 getPeerAddress();              // Get the address of the remote BLE Server
 	int                                        getRssi();                     // Get the RSSI of the remote BLE Server
