@@ -1,7 +1,7 @@
 This repository contains many enhancements and bugfixes that require extensive testing before can be merged with https://github.com/nkolban/esp32-snippets repository.
 
 
-14 Okt 2018
+14 Oct 2018
 Its been busy week, but few bugs has been fixed and what is more important we have some solid start (i hope so) with multiple connection in both directions. 
 
 To start building applications with multiple connections, especially central to many peripherals it is important to study new functions. It should be all neccesary to build such apps shown in SampleClient.cpp.
